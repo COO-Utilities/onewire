@@ -1,12 +1,17 @@
+"""
+Onewire Controller Interface
+"""
 import asyncio
+import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 import sys
 
-from hispec.util.helper import logger_utils
 
 @dataclass
 class EDS0065DATA:
+    """Class to hold data from EDS0065"""
+    # pylint: disable=too-many-instance-attributes
     rom_id: str = None
     device_type: str = None
     health: int = None
@@ -19,9 +24,11 @@ class EDS0065DATA:
     humidex: float = None
     heat_index: float = None
     version: float = None
-    
+
 @dataclass
 class EDS0068DATA:
+    """Class to hold data from EDS0068"""
+    # pylint: disable=too-many-instance-attributes
     rom_id: str = None
     device_type: str = None
     health: int = None
@@ -40,6 +47,8 @@ class EDS0068DATA:
 
 @dataclass
 class ONEWIREDATA:
+    """Class to hold data from OneWire"""
+    # pylint: disable=too-many-instance-attributes
     poll_count: int = None
     total_devices: int = None
     loop_time: float = None
@@ -59,17 +68,19 @@ class ONEWIREDATA:
     datetime: str = None
     eds0065_data: list[EDS0065DATA] = field(default_factory=list)
     eds0068_data: list[EDS0068DATA] = field(default_factory=list)
-    
+
     def read_sensors(self):
+        """Method to read sensor data from OneWire"""
         sensors = []
         for sensor in self.eds0065_data:
             sensors.append(asdict(sensor))
         for sensor in self.eds0068_data:
             sensors.append(asdict(sensor))
-        
+
         return sensors
-    
+
     def read_temperature(self):
+        """Method to read temperature data from OneWire"""
         temperatures = []
         for sensor in self.eds0065_data:
             if sensor.temperature is not None:
@@ -79,10 +90,11 @@ class ONEWIREDATA:
             if sensor.temperature is not None:
                 temperature = {"rom_id": sensor.rom_id, "temperature": sensor.temperature}
                 temperatures.append(temperature)
-                
+
         return temperatures
-    
+
     def read_humidity(self):
+        """Method to read humidity data from OneWire"""
         humidities = []
         for sensor in self.eds0065_data:
             if sensor.humidity is not None:
@@ -92,38 +104,50 @@ class ONEWIREDATA:
             if sensor.humidity is not None:
                 humidity = {"rom_id": sensor.rom_id, "humidity": sensor.humidity}
                 humidities.append(humidity)
-                
+
         return humidities
 
 class ONEWIRE:
-    def __init__(self, address, timeout=1, log=True, quiet=False):
+    """Class for interfacing with OneWire"""
+    # pylint: disable=too-many-instance-attributes
+    def __init__(self, address, timeout=1, log=True):
         self.address = address
         self.http_port = 80
         self.udp_port = 30303
         self.tcp_port = 15145
         self.timeout = timeout
-        
+
         self.ow_data = ONEWIREDATA()
-        
+
+        self.reader = None
+        self.writer = None
+
         # Initialize logger
-        self.logger = logger_utils.setup_logger(
-            __name__, "ONEWIRE.log", quiet=quiet
-        ) if log else None
-        
+        if log:
+            logfile = __name__.rsplit('.', 1)[-1] + '.log'
+            self.logger = logging.getLogger(logfile)
+            self.logger.setLevel(logging.INFO)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            file_handler = logging.FileHandler(logfile)
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+        else:
+            self.logger = None
+
         if self.logger:
             self.logger.info("Logger initialized for ONEWIRE")
-        
+
     async def __aenter__(self):
         try:
             self.reader, self.writer = await asyncio.open_connection(self.address, self.http_port)
             if self.logger:
-                self.logger.info(f"Connected to {self.address}:{self.http_port}")
+                self.logger.info("Connected to %s:%d", self.address, self.http_port)
         except ConnectionRefusedError as err:
             if self.logger:
-                self.logger.error(f"Connection refused: {err}")
-            raise DeviceConnectionError("Could not connect to {}".format(self.address)) from err
+                self.logger.error("Connection refused: %s", err)
+            raise DeviceConnectionError(f"Could not connect to {self.address}") from err
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.writer:
             self.writer.close()
@@ -132,9 +156,10 @@ class ONEWIRE:
                 self.logger.info("Connection closed")
 
     async def get_data(self):
-        query = ("GET /details.xml HTTP/1.1\r\n\r\n")
+        """Method to get data from OneWire"""
+        query = "GET /details.xml HTTP/1.1\r\n\r\n"
         self.writer.write(query.encode("ascii"))
-        self.writer.drain
+        self.writer.drain()
 
         http_response = await self.reader.readuntil(b'\r\n')
         try:
@@ -149,36 +174,37 @@ class ONEWIRE:
             next_response = next_response.split(' ')[0]
             if next_response == "<?xml":
                 break
-        
+
         xml_data = await self.reader.readuntil(b'</Devices-Detail-Response>\r\n')
         self.__xml_data_handler(xml_data)
-    
+
     def __http_response_handler(self, response):
         response = response.decode("ascii")
         response_code = int(response.split(' ')[1])
 
         if response_code == 404:
-            raise HttpResponseError("Http response error: {}".format(response_code))
-        elif response_code == 200:
-            return
-        
+            raise HttpResponseError(f"Http response error: {response_code}")
+        # elif response_code == 200:
+        #    return
+
     def __xml_data_handler(self, xml_data):
         root = ET.fromstring(xml_data)
         # ET.register_namespace("", "http://www.embeddeddatasystems.com/schema/owserver")
         for elem in root.iter():
             tag_elements = elem.tag.split("}")
             elem.tag = tag_elements[1]
-        
+
         if self.logger:
-            self.logger.debug(f"XML data received: {ET.tostring(root, encoding='unicode')}")
+            self.logger.debug("XML data received: %s", ET.tostring(root, encoding='unicode'))
         # ET.dump(root)
         # for elem in root.iter():
         #     print(elem.tag, elem.attrib, elem.text)
-        
+
         for elem in root.iter():
             self.__device_data_handler(elem)
-                
+
     def __device_data_handler(self, element):
+        # pylint: disable=too-many-branches
         if element.tag == "PollCount":
             self.ow_data.poll_count = int(element.text)
         elif element.tag == "DevicesConnected":
@@ -217,8 +243,9 @@ class ONEWIRE:
             self.__sensor_data_handler(element, sensor_type="EDS0065")
         elif element.tag == "owd_EDS0068":
             self.__sensor_data_handler(element, sensor_type="EDS0068")
-            
+
     def __sensor_data_handler(self, element, sensor_type):
+        # pylint: disable=too-many-branches,too-many-statements
         if sensor_type == "EDS0065":
             eds0065_data = EDS0065DATA()
             for sensor in element:
@@ -247,7 +274,7 @@ class ONEWIRE:
                     eds0065_data.heat_index = float(sensor.text)
                 elif sensor.tag == "Version":
                     eds0065_data.version = float(sensor.text)
-                    
+
             self.ow_data.eds0065_data.append(eds0065_data)
         elif sensor_type == "EDS0068":
             eds0068_data = EDS0068DATA()
@@ -287,19 +314,23 @@ class ONEWIRE:
             self.ow_data.eds0068_data.append(eds0068_data)
 
 class HttpResponseError(Exception):
-    pass
+    """Response Error from OneWire"""
+    # pass
 
 class DeviceConnectionError(Exception):
-    pass
+    """Device Connection Error from OneWire"""
+    # pass
 
 async def test_onewire(ow_address) -> ONEWIREDATA:
-    async with ONEWIRE(ow_address, quiet=True) as ow:
+    """Method to test connection to OneWire"""
+    async with ONEWIRE(ow_address) as ow:
         await ow.get_data()
-        
+
     return ow.ow_data
-        
+
+
 if __name__ == "__main__":
     OW_ADDRESS = ""
     ow_data = asyncio.run(test_onewire(OW_ADDRESS))
-    sensors = ow_data.read_sensors()
-    print(sensors)
+    ow_sensors = ow_data.read_sensors()
+    print(ow_sensors)
