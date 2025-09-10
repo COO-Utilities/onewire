@@ -13,7 +13,7 @@ It uses `async with` interface
 
 ```python
 import asyncio
-from hispec.util.inficon import ONEWIRE, ONEWIREDATA
+from onewire import ONEWIRE
 
 async def test_read():
     async with ONEWIRE("127.0.0.1") as ow:
