@@ -7,13 +7,13 @@ import asyncio
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from urllib3.exceptions import ReadTimeoutError
-from onewire import ONEWIRE
+import onewire
 
 # cfg_file = files('scripts'), 'influxdb_config.json')
 
 async def get_data(device_host: str):
     """Get data from Onewire asynchronously"""
-    async with ONEWIRE(device_host) as ow:
+    async with onewire.ONEWIRE(device_host) as ow:
         await ow.get_data()
     return ow.ow_data
 
