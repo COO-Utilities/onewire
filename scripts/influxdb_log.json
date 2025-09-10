@@ -1,0 +1,19 @@
+{
+  "db_url": "localhost:8086",
+  "db_token": "",
+  "db_org": "Organization",
+  "db_bucket": "bucket",
+  "db_channel": "Temperature",
+  "log_channels": {
+    "temperature": {"field":  "temperature",
+        "units": "degC"},
+    "humidity": {"field": "humidity",
+        "units":  "Perc"},
+    "dew_point": {"field":  "dewpoint",
+        "units":  "degC"}
+  },
+  "device_host": "onewire",
+  "interval_secs": 30,
+  "verbose": 0,
+  "logfile": ""
+}
