@@ -6,6 +6,7 @@ import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 import sys
+from typing import List
 
 
 @dataclass
@@ -66,8 +67,8 @@ class ONEWIREDATA:
     hostname: str = None
     mac_address: str = None
     datetime: str = None
-    eds0065_data: list[EDS0065DATA] = field(default_factory=list)
-    eds0068_data: list[EDS0068DATA] = field(default_factory=list)
+    eds0065_data: List[EDS0065DATA] = field(default_factory=list)
+    eds0068_data: List[EDS0068DATA] = field(default_factory=list)
 
     def read_sensors(self):
         """Method to read sensor data from OneWire"""
@@ -159,7 +160,7 @@ class ONEWIRE:
         """Method to get data from OneWire"""
         query = "GET /details.xml HTTP/1.1\r\n\r\n"
         self.writer.write(query.encode("ascii"))
-        self.writer.drain()
+        await self.writer.drain()
 
         http_response = await self.reader.readuntil(b'\r\n')
         try:
