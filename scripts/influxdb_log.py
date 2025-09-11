@@ -13,7 +13,7 @@ import onewire
 
 async def get_data(device_host: str):
     """Get data from Onewire asynchronously"""
-    async with onewire.ONEWIRE(device_host) as ow:
+    async with onewire.ONEWIRE(device_host, log=False) as ow:
         await ow.get_data()
     return ow.ow_data
 
