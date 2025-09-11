@@ -127,11 +127,13 @@ class ONEWIRE:
         if log:
             logfile = __name__.rsplit('.', 1)[-1] + '.log'
             self.logger = logging.getLogger(logfile)
-            self.logger.setLevel(logging.INFO)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            file_handler = logging.FileHandler(logfile)
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
+            if not self.logger.handlers:
+                self.logger.setLevel(logging.INFO)
+                formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                file_handler = logging.FileHandler(logfile)
+                file_handler.setFormatter(formatter)
+                self.logger.addHandler(file_handler)
         else:
             self.logger = None
 
