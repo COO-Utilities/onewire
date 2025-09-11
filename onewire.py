@@ -111,7 +111,7 @@ class ONEWIREDATA:
 class ONEWIRE:
     """Class for interfacing with OneWire"""
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, address, timeout=1, log=True):
+    def __init__(self, address, timeout=1, log=True, quiet=True):
         self.address = address
         self.http_port = 80
         self.udp_port = 30303
@@ -128,7 +128,10 @@ class ONEWIRE:
             logfile = __name__.rsplit('.', 1)[-1] + '.log'
             self.logger = logging.getLogger(logfile)
             if not self.logger.handlers:
-                self.logger.setLevel(logging.INFO)
+                if quiet:
+                    self.logger.setLevel(logging.INFO)
+                else:
+                    self.logger.setLevel(logging.DEBUG)
                 formatter = logging.Formatter(
                     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
                 file_handler = logging.FileHandler(logfile)
