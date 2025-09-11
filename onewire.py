@@ -156,6 +156,7 @@ class ONEWIRE:
             if self.logger:
                 self.logger.info("Connection closed")
                 logging.shutdown()
+                self.logger = None
 
     async def get_data(self):
         """Method to get data from OneWire"""
