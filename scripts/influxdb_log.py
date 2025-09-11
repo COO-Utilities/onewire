@@ -11,9 +11,9 @@ import onewire
 
 # cfg_file = files('scripts'), 'influxdb_config.json')
 
-async def get_data(device_host: str):
+async def get_data(device_host: str, do_log: bool=False) -> onewire.ONEWIREDATA:
     """Get data from Onewire asynchronously"""
-    async with onewire.ONEWIRE(device_host, log=False) as ow:
+    async with onewire.ONEWIRE(device_host, log=do_log) as ow:
         await ow.get_data()
     return ow.ow_data
 
@@ -46,6 +46,7 @@ def main(config_file):
 
     # Try/except to catch exceptions
     db_client = None
+    do_logging = logger is not None
     try:
         # Loop until ctrl-C
         while True:
@@ -55,8 +56,9 @@ def main(config_file):
                     print("Connecting to OneWire controller...")
                 if logger:
                     logger.info('Connecting to OneWire controller...')
-                ow = asyncio.run(get_data(cfg['device_host']))
+                ow = asyncio.run(get_data(cfg['device_host'], do_logging))
                 ow_data = ow.read_sensors()[0]
+                do_logging = False
 
                 # Connect to InfluxDB
                 if verbose:
