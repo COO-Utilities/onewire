@@ -72,7 +72,7 @@ def main(config_file):
                         value = ow_data[sensor][chan]
                         point = (
                             Point("onewire")
-                            .field(channels[chan]['field']+sensor, value)
+                            .field(channels[chan]['field']+str(sensor+1), value)
                             .tag("units", channels[chan]['units'])
                             .tag("channel", f"{cfg['db_channel']}")
                         )
