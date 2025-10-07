@@ -56,7 +56,7 @@ def main(config_file):
                 if logger:
                     logger.info('Connecting to OneWire controller...')
                 ow = asyncio.run(get_data(cfg['device_host']))
-                ow_data = ow.read_sensors()[0]
+                ow_data = ow.read_sensors()
 
                 # Connect to InfluxDB
                 if verbose:
@@ -67,19 +67,20 @@ def main(config_file):
                                            org=cfg['db_org'])
                 write_api = db_client.write_api(write_options=SYNCHRONOUS)
 
-                for chan in channels:
-                    value = ow_data[chan]
-                    point = (
-                        Point("onewire")
-                        .field(channels[chan]['field'], value)
-                        .tag("units", channels[chan]['units'])
-                        .tag("channel", f"{cfg['db_channel']}")
-                    )
-                    write_api.write(bucket=cfg['db_bucket'], org=cfg['db_org'], record=point)
-                    if verbose:
-                        print(point)
-                    if logger:
-                        logger.debug(point)
+                for sensor in range(len(ow_data)):
+                    for chan in channels:
+                        value = ow_data[sensor][chan]
+                        point = (
+                            Point("onewire")
+                            .field(channels[chan]['field']+sensor, value)
+                            .tag("units", channels[chan]['units'])
+                            .tag("channel", f"{cfg['db_channel']}")
+                        )
+                        write_api.write(bucket=cfg['db_bucket'], org=cfg['db_org'], record=point)
+                        if verbose:
+                            print(point)
+                        if logger:
+                            logger.debug(point)
 
                 # Close db connection
                 if verbose:
