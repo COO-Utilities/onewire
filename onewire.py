@@ -121,9 +121,6 @@ class ONEWIRE:
 
         self.ow_data = ONEWIREDATA()
 
-        self.reader = None
-        self.writer = None
-
         # Initialize logger
         if log:
             logfile = __name__.rsplit('.', 1)[-1] + '.log'
