@@ -177,7 +177,6 @@ class ONEWIRE:
         self.__xml_data_handler(xml_data)
 
     def __http_response_handler(self, response):
-        response = response.decode("ascii")
         response_code = int(response.split(' ')[1])
 
         if response_code != 200:
