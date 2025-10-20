@@ -136,6 +136,7 @@ class ONEWIRE(HardwareDeviceBase):
                     self.sock.connect((self.host, self.port))
                     self.sock.settimeout(self.timeout)
                     self._set_connected(True)
+                    self.logger.info("Connected to OneWire at %s:%d", self.host, self.port)
                 except (ConnectionRefusedError, OSError) as err:
                     raise DeviceConnectionError(
                         f"Could not connect to {self.host}:{self.port} {err}"
@@ -152,10 +153,10 @@ class ONEWIRE(HardwareDeviceBase):
         Close the connection to the controller.
         """
         try:
-            self.logger.info('Closing connection to controller')
             if self.sock:
                 self.sock.close()
             self._set_connected(False)
+            self.logger.info('Closed connection to controller')
         except Exception as ex:
             raise IOError(f"Failed to close connection: {ex}") from ex
 
