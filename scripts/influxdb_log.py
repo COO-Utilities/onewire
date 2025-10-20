@@ -18,21 +18,29 @@ def main(config_file):
 
     verbose = cfg['verbose'] == 1
 
+    # set up logging
+    logfile = cfg['logfile']
+    if logfile is None:
+        logfile = __name__.rsplit('.', 1)[-1]
+    logger = logging.getLogger(logfile)
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+    # log to console by default
+    console_formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s')
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
     # Do we have a logfile?
     if cfg['logfile'] is not None:
         # log to a file
-        logger = logging.getLogger(cfg['logfile'])
-        if verbose:
-            logger.setLevel(logging.DEBUG)
-        else:
-            logger.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        file_handler = logging.FileHandler(cfg['logfile'])
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(funcName)s() - %(message)s')
+        file_handler = logging.FileHandler(logfile if ".log" in logfile else logfile + '.log')
         file_handler.setFormatter(formatter)
-        if not logger.hasHandlers():
-            logger.addHandler(file_handler)
-    else:
-        logger = None
+        logger.addHandler(file_handler)
 
     # get channels to log
     channels = cfg['log_channels']
@@ -44,67 +52,46 @@ def main(config_file):
         while True:
             try:
                 # Connect to onewire
-                if verbose:
-                    print("Connecting to OneWire controller...")
-                if logger:
-                    logger.info('Connecting to OneWire controller...')
+                logger.info('Connecting to OneWire controller...')
                 ow = onewire.ONEWIRE(cfg['device_host'])
                 ow.get_data()
                 ow_data = ow.ow_data.read_sensors()
 
                 # Connect to InfluxDB
-                if verbose:
-                    print("Connecting to InfluxDB...")
-                if logger:
-                    logger.info('Connecting to InfluxDB...')
+                logger.info('Connecting to InfluxDB...')
                 db_client = InfluxDBClient(url=cfg['db_url'], token=cfg['db_token'],
                                            org=cfg['db_org'])
                 write_api = db_client.write_api(write_options=SYNCHRONOUS)
 
-                for sensor in range(len(ow_data)):
+                for sens_no, sensor in enumerate(ow_data):
                     for chan in channels:
-                        value = ow_data[sensor][chan]
+                        value = sensor[chan]
                         point = (
                             Point("onewire")
-                            .field(channels[chan]['field']+str(sensor+1), value)
+                            .field(channels[chan]['field']+str(sens_no+1), value)
                             .tag("units", channels[chan]['units'])
                             .tag("channel", f"{cfg['db_channel']}")
                         )
                         write_api.write(bucket=cfg['db_bucket'], org=cfg['db_org'], record=point)
-                        if verbose:
-                            print(point)
-                        if logger:
-                            logger.debug(point)
+                        logger.debug(point)
 
                 # Close db connection
-                if verbose:
-                    print("Closing connection to InfluxDB...")
-                if logger:
-                    logger.info('Closing connection to InfluxDB...')
+                logger.info('Closing connection to InfluxDB...')
                 db_client.close()
                 db_client = None
 
             # Handle exceptions
             except ReadTimeoutError as e:
-                print(f"ReadTimeoutError: {e}, will retry.")
-                if logger:
-                    logger.critical("ReadTimeoutError: %s, will retry.", e)
+                logger.critical("ReadTimeoutError: %s, will retry.", e)
             except Exception as e:
-                print(f"Unexpected error: {e}, will retry.")
-                if logger:
-                    logger.critical("Unexpected error: %s, will retry.", e)
+                logger.critical("Unexpected error: %s, will retry.", e)
 
             # Sleep for interval_secs
-            if verbose:
-                print(f"Waiting {cfg['interval_secs']:d} seconds...")
-            if logger:
-                logger.info("Waiting %d seconds...", cfg['interval_secs'])
+            logger.info("Waiting %d seconds...", cfg['interval_secs'])
             time.sleep(cfg['interval_secs'])
 
     except KeyboardInterrupt:
-        print("\nShutting down InfluxDB logging...")
-        if logger:
-            logger.critical("Shutting down InfluxDB logging...")
+        logger.critical("Shutting down InfluxDB logging...")
         if db_client:
             db_client.close()
 

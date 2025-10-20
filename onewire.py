@@ -209,6 +209,8 @@ class ONEWIRE(HardwareDeviceBase):
 
         while b'</Devices-Detail-Response>' not in response:
             response += self.sock.recv(1024)
+        # at this point the connection has been closed, so indicate it
+        self._set_connected(False)
 
         response = response.decode("ascii")
         xml_data = response.split("?>\r\n")[1]
