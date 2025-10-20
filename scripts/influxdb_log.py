@@ -11,6 +11,7 @@ import onewire
 
 def main(config_file):
     """Query user for setup info and start logging to InfluxDB."""
+    # pylint: disable=too-many-statements,too-many-locals
 
     # read the config file
     with open(config_file, encoding='utf-8') as cfg_file:
