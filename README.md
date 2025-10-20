@@ -7,20 +7,22 @@ It uses `async with` interface
 ## Requirements
 
 - Python 3.7+
-- No third-party packages required (pure standard library)
+- Install base class from https://github.com/COO-Utilities/hardware_device_base
 
 ### Running from a Python Terminal
 
 ```python
-import asyncio
 from onewire import ONEWIRE
 
-async def test_read():
-    async with ONEWIRE("127.0.0.1") as ow:
-        await ow.get_data()
+ow = ONEWIRE()
+ow.connect("192.168.29.154", 80)
 
-    return ow.ow_data
-
-ow_data = asyncio.run(test_read())
-print(ow_data.read_sensors())
+ow.get_data()
+print(ow.ow_data.read_sensors())
+ow.get_data()
+print(ow.ow_data.read_sensors())
 ```
+### NOTE
+The OneWire disconnects after each call to get_data(), but the host and port
+are stored after the first connection, so subsequent calls to get_data() will
+reconnect.
