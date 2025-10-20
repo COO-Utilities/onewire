@@ -127,7 +127,7 @@ class ONEWIRE(HardwareDeviceBase):
 
     def connect(self, *args, con_type="tcp") -> None:
         """Method to connect to OneWire"""
-        if self.validate_connection_params(*args):
+        if self.validate_connection_params(args):
             if con_type == "tcp":
                 self.host = args[0]
                 self.port = args[1]
