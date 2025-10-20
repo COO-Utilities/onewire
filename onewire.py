@@ -5,7 +5,7 @@ import socket
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 import sys
-from typing import List
+from typing import List, Union
 
 from hardware_device_base import HardwareDeviceBase
 
@@ -187,6 +187,10 @@ class ONEWIRE(HardwareDeviceBase):
             return retval
         except Exception as ex:
             raise IOError(f"Failed to _read_reply message: {ex}") from ex
+
+    def get_atomic_value(self, item: str ="") -> Union[float, int, str, None]:
+        """Get the atomic value from the controller."""
+        print(item)
 
     def get_data(self):
         """Method to get data from OneWire"""
