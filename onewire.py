@@ -2,12 +2,14 @@
 Onewire Controller Interface
 """
 import socket
-import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 import sys
-from typing import List
+from typing import List, Union
 
+from hardware_device_base import HardwareDeviceBase
+
+PARAMETER_QUERY = "GET /details.xml HTTP/1.1\r\n\r\n"
 
 @dataclass
 class EDS0065DATA:
@@ -108,56 +110,99 @@ class ONEWIREDATA:
 
         return humidities
 
-class ONEWIRE:
+class ONEWIRE(HardwareDeviceBase):
     """Class for interfacing with OneWire"""
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, address, timeout=1, log=True, quiet=True):
-        self.address = address
-        self.http_port = 80
-        self.udp_port = 30303
-        self.tcp_port = 15145
+    def __init__(self, timeout=1, log=True, logfile=__name__.rsplit(".", 1)[-1]):
+        """Instantiate a OneWire device"""
+
+        super().__init__(log, logfile)
+
+        self.host = None
+        self.port = 80
         self.timeout = timeout
         self.sock: socket.socket | None = None
 
         self.ow_data = ONEWIREDATA()
 
-        # Initialize logger
-        if log:
-            logfile = __name__.rsplit('.', 1)[-1] + '.log'
-            self.logger = logging.getLogger(logfile)
-            if not self.logger.handlers:
-                if quiet:
-                    self.logger.setLevel(logging.INFO)
-                else:
-                    self.logger.setLevel(logging.DEBUG)
-                formatter = logging.Formatter(
-                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-                file_handler = logging.FileHandler(logfile)
-                file_handler.setFormatter(formatter)
-                self.logger.addHandler(file_handler)
-        else:
-            self.logger = None
-
-        if self.logger:
-            self.logger.info("Logger initialized for ONEWIRE")
-
-    def connect(self):
+    def connect(self, *args, con_type="tcp") -> None:
         """Method to connect to OneWire"""
+        if self.validate_connection_params(args):
+            if con_type == "tcp":
+                self.host = args[0]
+                self.port = args[1]
+                try:
+                    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self.sock.connect((self.host, self.port))
+                    self.sock.settimeout(self.timeout)
+                    self._set_connected(True)
+                    self.logger.info("Connected to OneWire at %s:%d", self.host, self.port)
+                except (ConnectionRefusedError, OSError) as err:
+                    raise DeviceConnectionError(
+                        f"Could not connect to {self.host}:{self.port} {err}"
+                    ) from err
+            else:
+                self.logger.error()
+                raise DeviceConnectionError(f"Connection type not supported: {con_type}")
+        else:
+            self._set_connected(False)
+            self.logger.error("Invalid connection arguments: %s", args)
+
+    def disconnect(self):
+        """
+        Close the connection to the controller.
+        """
         try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect((self.address, self.http_port))
-            self.sock.settimeout(self.timeout)
-        except (ConnectionRefusedError, OSError) as err:
-            raise DeviceConnectionError(
-                f"Could not connect to {self.address}:{self.http_port} {err}"
-            ) from err
+            if self.sock:
+                self.sock.close()
+            self._set_connected(False)
+            self.logger.info('Closed connection to controller')
+        except Exception as ex:
+            raise IOError(f"Failed to close connection: {ex}") from ex
+
+    def _send_command(self, command: str, *args) -> bool:
+        """
+        Send a message to the controller (adds newline).
+
+        Args:
+            command (str): The message to send (e.g., '3A?').
+        """
+        try:
+            self.logger.debug('Sending: %s', command)
+            with self.lock:
+                self.sock.sendall(command.encode("ascii"))
+        except Exception as ex:
+            raise IOError(f'Failed to write message: {ex}') from ex
+        return True
+
+    def _read_reply(self) -> bytes:
+        """
+        Read a response from the controller.
+
+        Returns:
+            str: The received message, stripped of trailing newline.
+        """
+        try:
+            retval = self.sock.recv(25000)
+            self.logger.debug('Received: %s', retval.decode("ascii"))
+            return retval
+        except Exception as ex:
+            raise IOError(f"Failed to _read_reply message: {ex}") from ex
+
+    def get_atomic_value(self, item: str ="") -> Union[float, int, str, None]:
+        """Get the atomic value from the controller."""
+        self.logger.warning("""Not implemented, use:
+        > controller.get_data()
+        > data = controller.ow_data.read_sensors()
+        """)
 
     def get_data(self):
         """Method to get data from OneWire"""
-        self.connect()
-        query = "GET /details.xml HTTP/1.1\r\n\r\n"
-        self.sock.sendall(query.encode("ascii"))
-        response = self.sock.recv(25000)
+        if not self.is_connected():
+            self.connect(self.host, self.port)
+        self._send_command(PARAMETER_QUERY)
+
+        response = self._read_reply()
 
         http_response = response.decode("ascii").split("\r\n")[0]
         try:
@@ -168,6 +213,8 @@ class ONEWIRE:
 
         while b'</Devices-Detail-Response>' not in response:
             response += self.sock.recv(1024)
+        # at this point the server has dropped the connection, so disconnect
+        self.disconnect()
 
         response = response.decode("ascii")
         xml_data = response.split("?>\r\n")[1]
