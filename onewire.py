@@ -9,6 +9,7 @@ from typing import List
 
 from hardware_device_base import HardwareDeviceBase
 
+PARAMETER_QUERY = "GET /details.xml HTTP/1.1\r\n\r\n"
 
 @dataclass
 class EDS0065DATA:
@@ -134,6 +135,7 @@ class ONEWIRE(HardwareDeviceBase):
                     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sock.connect((self.host, self.port))
                     self.sock.settimeout(self.timeout)
+                    self._set_connected(True)
                 except (ConnectionRefusedError, OSError) as err:
                     raise DeviceConnectionError(
                         f"Could not connect to {self.host}:{self.port} {err}"
@@ -142,6 +144,7 @@ class ONEWIRE(HardwareDeviceBase):
                 self.logger.error()
                 raise DeviceConnectionError(f"Connection type not supported: {con_type}")
         else:
+            self._set_connected(False)
             self.logger.error("Invalid connection arguments: %s", args)
 
     def disconnect(self):
@@ -166,12 +169,12 @@ class ONEWIRE(HardwareDeviceBase):
         try:
             self.logger.debug('Sending: %s', command)
             with self.lock:
-                self.sock.sendall((command + "\n").encode())
+                self.sock.sendall(command.encode("ascii"))
         except Exception as ex:
             raise IOError(f'Failed to write message: {ex}') from ex
         return True
 
-    def _read_reply(self) -> str:
+    def _read_reply(self) -> bytes:
         """
         Read a response from the controller.
 
@@ -179,18 +182,19 @@ class ONEWIRE(HardwareDeviceBase):
             str: The received message, stripped of trailing newline.
         """
         try:
-            retval = self.sock.recv(4096).decode().strip()
-            self.logger.debug('Received: %s', retval)
+            retval = self.sock.recv(25000)
+            self.logger.debug('Received: %s', retval.decode("ascii"))
             return retval
         except Exception as ex:
             raise IOError(f"Failed to _read_reply message: {ex}") from ex
 
     def get_data(self):
         """Method to get data from OneWire"""
-        self.connect(self.host, self.port)
-        query = "GET /details.xml HTTP/1.1\r\n\r\n"
-        self.sock.sendall(query.encode("ascii"))
-        response = self.sock.recv(25000)
+        if not self.is_connected():
+            self.connect(self.host, self.port)
+        self._send_command(PARAMETER_QUERY)
+
+        response = self._read_reply()
 
         http_response = response.decode("ascii").split("\r\n")[0]
         try:
