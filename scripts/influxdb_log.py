@@ -3,19 +3,11 @@ import time
 import sys
 import json
 import logging
-import asyncio
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from urllib3.exceptions import ReadTimeoutError
 import onewire
 
-# cfg_file = files('scripts'), 'influxdb_config.json')
-
-async def get_data(device_host: str) -> onewire.ONEWIREDATA:
-    """Get data from Onewire asynchronously"""
-    async with onewire.ONEWIRE(device_host) as ow:
-        await ow.get_data()
-    return ow.ow_data
 
 def main(config_file):
     """Query user for setup info and start logging to InfluxDB."""
@@ -37,7 +29,8 @@ def main(config_file):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler = logging.FileHandler(cfg['logfile'])
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        if not logger.hasHandlers():
+            logger.addHandler(file_handler)
     else:
         logger = None
 
@@ -55,8 +48,9 @@ def main(config_file):
                     print("Connecting to OneWire controller...")
                 if logger:
                     logger.info('Connecting to OneWire controller...')
-                ow = asyncio.run(get_data(cfg['device_host']))
-                ow_data = ow.read_sensors()
+                ow = onewire.ONEWIRE(cfg['device_host'])
+                ow.get_data()
+                ow_data = ow.ow_data.read_sensors()
 
                 # Connect to InfluxDB
                 if verbose:

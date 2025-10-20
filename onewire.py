@@ -1,7 +1,7 @@
 """
 Onewire Controller Interface
 """
-import asyncio
+import socket
 import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
@@ -117,11 +117,9 @@ class ONEWIRE:
         self.udp_port = 30303
         self.tcp_port = 15145
         self.timeout = timeout
+        self.sock: socket.socket | None = None
 
         self.ow_data = ONEWIREDATA()
-
-        self.reader = None
-        self.writer = None
 
         # Initialize logger
         if log:
@@ -143,61 +141,47 @@ class ONEWIRE:
         if self.logger:
             self.logger.info("Logger initialized for ONEWIRE")
 
-    async def __aenter__(self):
+    def connect(self):
+        """Method to connect to OneWire"""
         try:
-            self.reader, self.writer = await asyncio.open_connection(self.address, self.http_port)
-            if self.logger:
-                self.logger.info("Connected to %s:%d", self.address, self.http_port)
-        except ConnectionRefusedError as err:
-            if self.logger:
-                self.logger.error("Connection refused: %s", err)
-            raise DeviceConnectionError(f"Could not connect to {self.address}") from err
-        return self
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.address, self.http_port))
+            self.sock.settimeout(self.timeout)
+        except (ConnectionRefusedError, OSError) as err:
+            raise DeviceConnectionError(
+                f"Could not connect to {self.address}:{self.http_port} {err}"
+            ) from err
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.writer:
-            self.writer.close()
-            await self.writer.wait_closed()
-            if self.logger:
-                self.logger.info("Connection closed")
-                logging.shutdown()
-                self.logger = None
-
-    async def get_data(self):
+    def get_data(self):
         """Method to get data from OneWire"""
+        self.connect()
         query = "GET /details.xml HTTP/1.1\r\n\r\n"
-        self.writer.write(query.encode("ascii"))
-        await self.writer.drain()
+        self.sock.sendall(query.encode("ascii"))
+        response = self.sock.recv(25000)
 
-        http_response = await self.reader.readuntil(b'\r\n')
+        http_response = response.decode("ascii").split("\r\n")[0]
         try:
             self.__http_response_handler(http_response)
         except HttpResponseError as err:
             print(err)
             sys.exit(1)
 
-        while True:
-            next_response = await self.reader.readuntil(b'\r\n')
-            next_response = next_response.decode("ascii")
-            next_response = next_response.split(' ')[0]
-            if next_response == "<?xml":
-                break
+        while b'</Devices-Detail-Response>' not in response:
+            response += self.sock.recv(1024)
 
-        xml_data = await self.reader.readuntil(b'</Devices-Detail-Response>\r\n')
+        response = response.decode("ascii")
+        xml_data = response.split("?>\r\n")[1]
         self.__xml_data_handler(xml_data)
 
     def __http_response_handler(self, response):
-        response = response.decode("ascii")
         response_code = int(response.split(' ')[1])
 
-        if response_code == 404:
+        if response_code != 200:
             raise HttpResponseError(f"Http response error: {response_code}")
-        # elif response_code == 200:
-        #    return
 
     def __xml_data_handler(self, xml_data):
         root = ET.fromstring(xml_data)
-        # ET.register_namespace("", "http://www.embeddeddatasystems.com/schema/owserver")
+
         for elem in root.iter():
             tag_elements = elem.tag.split("}")
             elem.tag = tag_elements[1]
@@ -329,16 +313,10 @@ class DeviceConnectionError(Exception):
     """Device Connection Error from OneWire"""
     # pass
 
-async def test_onewire(ow_address) -> ONEWIREDATA:
-    """Method to test connection to OneWire"""
-    async with ONEWIRE(ow_address) as ow:
-        await ow.get_data()
-
-    return ow.ow_data
-
 
 if __name__ == "__main__":
-    OW_ADDRESS = ""
-    ow_data = asyncio.run(test_onewire(OW_ADDRESS))
-    ow_sensors = ow_data.read_sensors()
+    OW_ADDRESS = "hs1wireblue"
+    ow = ONEWIRE(OW_ADDRESS)
+    ow.get_data()
+    ow_sensors = ow.ow_data.read_sensors()
     print(ow_sensors)
