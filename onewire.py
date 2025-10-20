@@ -2,7 +2,6 @@
 Onewire Controller Interface
 """
 import socket
-import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 import sys
@@ -144,6 +143,47 @@ class ONEWIRE(HardwareDeviceBase):
                 raise DeviceConnectionError(f"Connection type not supported: {con_type}")
         else:
             self.logger.error("Invalid connection arguments: %s", args)
+
+    def disconnect(self):
+        """
+        Close the connection to the controller.
+        """
+        try:
+            self.logger.info('Closing connection to controller')
+            if self.sock:
+                self.sock.close()
+            self._set_connected(False)
+        except Exception as ex:
+            raise IOError(f"Failed to close connection: {ex}") from ex
+
+    def _send_command(self, command: str, *args) -> bool:
+        """
+        Send a message to the controller (adds newline).
+
+        Args:
+            command (str): The message to send (e.g., '3A?').
+        """
+        try:
+            self.logger.debug('Sending: %s', command)
+            with self.lock:
+                self.sock.sendall((command + "\n").encode())
+        except Exception as ex:
+            raise IOError(f'Failed to write message: {ex}') from ex
+        return True
+
+    def _read_reply(self) -> str:
+        """
+        Read a response from the controller.
+
+        Returns:
+            str: The received message, stripped of trailing newline.
+        """
+        try:
+            retval = self.sock.recv(4096).decode().strip()
+            self.logger.debug('Received: %s', retval)
+            return retval
+        except Exception as ex:
+            raise IOError(f"Failed to _read_reply message: {ex}") from ex
 
     def get_data(self):
         """Method to get data from OneWire"""
