@@ -8,6 +8,8 @@ from dataclasses import dataclass, field, asdict
 import sys
 from typing import List
 
+from hardware_device_base import HardwareDeviceBase
+
 
 @dataclass
 class EDS0065DATA:
@@ -108,53 +110,44 @@ class ONEWIREDATA:
 
         return humidities
 
-class ONEWIRE:
+class ONEWIRE(HardwareDeviceBase):
     """Class for interfacing with OneWire"""
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, address, timeout=1, log=True, quiet=True):
-        self.address = address
-        self.http_port = 80
-        self.udp_port = 30303
-        self.tcp_port = 15145
+    def __init__(self, timeout=1, log=True, logfile=__name__.rsplit(".", 1)[-1]):
+        """Instantiate a OneWire device"""
+
+        super().__init__(log, logfile)
+
+        self.host = None
+        self.port = 80
         self.timeout = timeout
         self.sock: socket.socket | None = None
 
         self.ow_data = ONEWIREDATA()
 
-        # Initialize logger
-        if log:
-            logfile = __name__.rsplit('.', 1)[-1] + '.log'
-            self.logger = logging.getLogger(logfile)
-            if not self.logger.handlers:
-                if quiet:
-                    self.logger.setLevel(logging.INFO)
-                else:
-                    self.logger.setLevel(logging.DEBUG)
-                formatter = logging.Formatter(
-                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-                file_handler = logging.FileHandler(logfile)
-                file_handler.setFormatter(formatter)
-                self.logger.addHandler(file_handler)
-        else:
-            self.logger = None
-
-        if self.logger:
-            self.logger.info("Logger initialized for ONEWIRE")
-
-    def connect(self):
+    def connect(self, *args, con_type="tcp") -> None:
         """Method to connect to OneWire"""
-        try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect((self.address, self.http_port))
-            self.sock.settimeout(self.timeout)
-        except (ConnectionRefusedError, OSError) as err:
-            raise DeviceConnectionError(
-                f"Could not connect to {self.address}:{self.http_port} {err}"
-            ) from err
+        if self.validate_connection_params(*args):
+            if con_type == "tcp":
+                self.host = args[0]
+                self.port = args[1]
+                try:
+                    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self.sock.connect((self.host, self.port))
+                    self.sock.settimeout(self.timeout)
+                except (ConnectionRefusedError, OSError) as err:
+                    raise DeviceConnectionError(
+                        f"Could not connect to {self.host}:{self.port} {err}"
+                    ) from err
+            else:
+                self.logger.error()
+                raise DeviceConnectionError(f"Connection type not supported: {con_type}")
+        else:
+            self.logger.error("Invalid connection arguments: %s", args)
 
     def get_data(self):
         """Method to get data from OneWire"""
-        self.connect()
+        self.connect(self.host, self.port)
         query = "GET /details.xml HTTP/1.1\r\n\r\n"
         self.sock.sendall(query.encode("ascii"))
         response = self.sock.recv(25000)
