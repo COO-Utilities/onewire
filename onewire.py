@@ -190,7 +190,10 @@ class ONEWIRE(HardwareDeviceBase):
 
     def get_atomic_value(self, item: str ="") -> Union[float, int, str, None]:
         """Get the atomic value from the controller."""
-        print(item)
+        self.logger.warning("""Not implemented, use:
+        > controller.get_data()
+        > data = controller.ow_data.read_sensors()
+        """)
 
     def get_data(self):
         """Method to get data from OneWire"""
@@ -209,8 +212,8 @@ class ONEWIRE(HardwareDeviceBase):
 
         while b'</Devices-Detail-Response>' not in response:
             response += self.sock.recv(1024)
-        # at this point the connection has been closed, so indicate it
-        self._set_connected(False)
+        # at this point the server has dropped the connection, so disconnect
+        self.disconnect()
 
         response = response.decode("ascii")
         xml_data = response.split("?>\r\n")[1]
