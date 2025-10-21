@@ -46,9 +46,6 @@ def main(config_file):
     # get channels to log
     channels = cfg['log_channels']
 
-    # Instantiate OneWire controller
-    ow = onewire.ONEWIRE()
-
     # Try/except to catch exceptions
     db_client = None
     try:
@@ -56,6 +53,7 @@ def main(config_file):
         while True:
             try:
                 # Connect to onewire
+                ow = onewire.ONEWIRE()
                 logger.info('Connecting to OneWire controller...')
                 ow.connect(cfg['device_host'], cfg['device_port'])
                 ow.get_data()
