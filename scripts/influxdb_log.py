@@ -45,6 +45,7 @@ def main(config_file):
 
     # get channels to log
     channels = cfg['log_channels']
+    locations = cfg['log_locations']
 
     # Try/except to catch exceptions
     db_client = None
@@ -66,11 +67,13 @@ def main(config_file):
                 write_api = db_client.write_api(write_options=SYNCHRONOUS)
 
                 for sens_no, sensor in enumerate(ow_data):
+                    location = locations[str(sens_no+1)]
                     for chan in channels:
                         value = sensor[chan]
                         point = (
                             Point("onewire")
                             .field(channels[chan]['field']+str(sens_no+1), value)
+                            .tag("location", location)
                             .tag("units", channels[chan]['units'])
                             .tag("channel", f"{cfg['db_channel']}")
                         )

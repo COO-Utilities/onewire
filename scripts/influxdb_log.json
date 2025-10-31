@@ -12,6 +12,15 @@
     "dew_point": {"field":  "dewpoint",
         "units":  "degC"}
   },
+  "log_locations": {
+    "1": "Rack loc1",
+    "2": "Rack loc2",
+    "3": "Rack loc3",
+    "4": "Rack loc4",
+    "5": "Rack loc5",
+    "6": "Rack loc6",
+    "7": "Rack loc7"
+  },
   "device_host": "onewire",
   "device_port": 80,
   "interval_secs": 30,
