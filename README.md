@@ -1,8 +1,9 @@
 # Onewire Environmental Sensor
 
 Low-level Python modules to communicate with Embedded Data Systems OW-SERVER device.
-It supports reading temperature, humidity, dew point, humidex, heat index, pressure, and illuminance from OW-ENV sensor (pressure and illuminance are only available on supported sensors).
-It uses `async with` interface
+It supports reading temperature, humidity, dew point, humidex, heat index,
+pressure, and illuminance from OW-ENV sensor (pressure and illuminance are only
+available on supported sensors).
 
 ## Requirements
 

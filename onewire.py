@@ -363,7 +363,9 @@ class DeviceConnectionError(Exception):
 
 if __name__ == "__main__":
     OW_ADDRESS = "hs1wireblue"
-    ow = ONEWIRE(OW_ADDRESS)
+    OW_PORT = 80
+    ow = ONEWIRE()
+    ow.connect(OW_ADDRESS, OW_PORT)
     ow.get_data()
     ow_sensors = ow.ow_data.read_sensors()
     print(ow_sensors)
