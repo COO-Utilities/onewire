@@ -5,7 +5,7 @@ import socket
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 import sys
-from typing import List, Union
+from typing import List, Union, Any
 
 from hardware_device_base import HardwareDeviceBase
 
@@ -189,12 +189,18 @@ class ONEWIRE(HardwareDeviceBase):
         except Exception as ex:
             raise IOError(f"Failed to _read_reply message: {ex}") from ex
 
-    def get_atomic_value(self, item: str ="") -> Union[float, int, str, None]:
+    def get_atomic_value(self, item: str ="") -> Union[list[Any], None]:
         """Get the atomic value from the controller."""
-        self.logger.warning("""Not implemented, use:
-        > controller.get_data()
-        > data = controller.ow_data.read_sensors()
-        """)
+        allowed_items = ["temperature", "humidity", "dew_point"]
+        if item not in allowed_items:
+            self.logger.error("Item not allowed: %s", item)
+            return None
+        self.get_data()
+        ow_data = self.ow_data.read_sensors()
+        value_list = []
+        for sens_no, sensor in enumerate(ow_data):
+            value_list.append(sensor[item])
+        return value_list
 
     def get_data(self):
         """Method to get data from OneWire"""
