@@ -5,6 +5,7 @@ import socket
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 import sys
+import copy
 from typing import List, Union, Any
 
 from hardware_device_base import HardwareDeviceBase
@@ -320,7 +321,7 @@ class ONEWIRE(HardwareDeviceBase):
                 elif sensor.tag == "Version":
                     eds0065_data.version = float(sensor.text)
 
-            self.ow_data.eds0065_data.append(eds0065_data)
+            self.ow_data.eds0065_data = copy.deepcopy(eds0065_data)
         elif sensor_type == "EDS0068":
             eds0068_data = EDS0068DATA()
             for sensor in element:
@@ -356,7 +357,7 @@ class ONEWIRE(HardwareDeviceBase):
                     eds0068_data.illuminance = int(sensor.text)
                 elif sensor.tag == "Version":
                     eds0068_data.version = float(sensor.text)
-            self.ow_data.eds0068_data.append(eds0068_data)
+            self.ow_data.eds0068_data = copy.deepcopy(eds0068_data)
 
 class HttpResponseError(Exception):
     """Response Error from OneWire"""
