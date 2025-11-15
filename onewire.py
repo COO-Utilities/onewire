@@ -123,6 +123,8 @@ class ONEWIRE(HardwareDeviceBase):
         self.timeout = timeout
         self.sock: socket.socket | None = None
 
+        # Instantiated with ONEWIREDATA each time method get_data is called.
+        # This avoids continual appending of data and unchecked growth of data structure.
         self.ow_data = None
 
     def connect(self, *args, con_type="tcp") -> None:
@@ -217,7 +219,7 @@ class ONEWIRE(HardwareDeviceBase):
             print(err)
             sys.exit(1)
 
-        # fresh copy
+        # fresh copy to avoid continual appending
         self.ow_data = ONEWIREDATA()
 
         while b'</Devices-Detail-Response>' not in response:
