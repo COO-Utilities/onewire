@@ -7,7 +7,7 @@ from dataclasses import dataclass, field, asdict
 import sys
 from typing import List, Union, Any
 
-from hardware_device_base import HardwareDeviceBase
+from hardware_device_base.hardware_sensor_base import HardwareSensorBase
 
 PARAMETER_QUERY = "GET /details.xml HTTP/1.1\r\n\r\n"
 
@@ -110,7 +110,7 @@ class ONEWIREDATA:
 
         return humidities
 
-class ONEWIRE(HardwareDeviceBase):
+class ONEWIRE(HardwareSensorBase):
     """Class for interfacing with OneWire"""
     # pylint: disable=too-many-instance-attributes
     def __init__(self, timeout=1, log=True, logfile=__name__.rsplit(".", 1)[-1]):
@@ -127,54 +127,64 @@ class ONEWIRE(HardwareDeviceBase):
         # This avoids continual appending of data and unchecked growth of data structure.
         self.ow_data = None
 
-    def connect(self, *args, con_type="tcp") -> None:
+    def connect(self, host, port, con_type="tcp") -> None:  # pylint: disable=W0221
         """Method to connect to OneWire"""
-        if self.validate_connection_params(args):
+        if self.validate_connection_params((host, port)):
             if con_type == "tcp":
-                self.host = args[0]
-                self.port = args[1]
+                self.host = host
+                self.port = port
                 try:
                     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sock.connect((self.host, self.port))
                     self.sock.settimeout(self.timeout)
                     self._set_connected(True)
-                    self.logger.info("Connected to OneWire at %s:%d", self.host, self.port)
+                    self.report_info(f"Connected to OneWire at {host}:{port}")
                 except (ConnectionRefusedError, OSError) as err:
                     raise DeviceConnectionError(
                         f"Could not connect to {self.host}:{self.port} {err}"
                     ) from err
             else:
-                self.logger.error()
-                raise DeviceConnectionError(f"Connection type not supported: {con_type}")
+                self.report_error(f"Invalid connection type: {con_type}")
+                self._set_connected(False)
         else:
+            self.report_error(f"Invalid connection arguments: {host}:{port}")
             self._set_connected(False)
-            self.logger.error("Invalid connection arguments: %s", args)
 
     def disconnect(self):
         """
         Close the connection to the controller.
         """
+        if not self.is_connected():
+            self.report_warning("Already disconnected from the controller")
+            return
         try:
+            self.logger.info('Closing connection to controller')
             if self.sock:
                 self.sock.close()
+                self.sock = None
             self._set_connected(False)
-            self.logger.info('Closed connection to controller')
+            self.report_info('Closed connection to controller')
         except Exception as ex:
             raise IOError(f"Failed to close connection: {ex}") from ex
 
-    def _send_command(self, command: str, *args) -> bool:
+    def _send_command(self, command: str) -> bool:  # pylint: disable=W0221
         """
         Send a message to the controller (adds newline).
 
         Args:
             command (str): The message to send (e.g., '3A?').
         """
+        if not self.is_connected():
+            self.report_error("Device is not connected")
+            return False
         try:
             self.logger.debug('Sending: %s', command)
             with self.lock:
                 self.sock.sendall(command.encode("ascii"))
         except Exception as ex:
+            self.report_error(f"Failed to send message: {ex}")
             raise IOError(f'Failed to write message: {ex}') from ex
+        self.logger.debug('Command sent')
         return True
 
     def _read_reply(self) -> bytes:
@@ -184,6 +194,9 @@ class ONEWIRE(HardwareDeviceBase):
         Returns:
             str: The received message, stripped of trailing newline.
         """
+        if not self.is_connected():
+            self.report_error("Device is not connected")
+            return b''
         try:
             retval = self.sock.recv(25000)
             self.logger.debug('Received: %s', retval.decode("ascii"))
@@ -200,7 +213,7 @@ class ONEWIRE(HardwareDeviceBase):
         self.get_data()
         ow_data = self.ow_data.read_sensors()
         value_list = []
-        for sens_no, sensor in enumerate(ow_data):
+        for sensor in ow_data:
             value_list.append(sensor[item])
         return value_list
 
@@ -244,8 +257,7 @@ class ONEWIRE(HardwareDeviceBase):
             tag_elements = elem.tag.split("}")
             elem.tag = tag_elements[1]
 
-        if self.logger:
-            self.logger.debug("XML data received: %s", ET.tostring(root, encoding='unicode'))
+        self.logger.debug("XML data received: %s", ET.tostring(root, encoding='unicode'))
         # ET.dump(root)
         # for elem in root.iter():
         #     print(elem.tag, elem.attrib, elem.text)
