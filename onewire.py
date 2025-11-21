@@ -7,7 +7,7 @@ from dataclasses import dataclass, field, asdict
 import sys
 from typing import List, Union, Any
 
-from hardware_device_base.hardware_sensor_base import HardwareSensorBase
+from hardware_device_base import HardwareSensorBase
 
 PARAMETER_QUERY = "GET /details.xml HTTP/1.1\r\n\r\n"
 
