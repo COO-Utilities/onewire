@@ -247,6 +247,7 @@ class ONEWIRE(HardwareSensorBase):
     def __http_response_handler(self, response):
         response_code = int(response.split(' ')[1])
 
+        self.logger.debug("HTTP response received: %s", response_code)
         if response_code != 200:
             raise HttpResponseError(f"Http response error: {response_code}")
 
