@@ -158,12 +158,12 @@ class ONEWIRE(HardwareSensorBase):
             self.report_warning("Already disconnected from the controller")
             return
         try:
-            self.logger.info('Closing connection to controller')
+            self.report_info('Closing connection to controller')
             if self.sock:
                 self.sock.close()
                 self.sock = None
             self._set_connected(False)
-            self.report_info('Closed connection to controller')
+            self.report_info("Closed connection to controller")
         except Exception as ex:
             raise IOError(f"Failed to close connection: {ex}") from ex
 
@@ -178,13 +178,13 @@ class ONEWIRE(HardwareSensorBase):
             self.report_error("Device is not connected")
             return False
         try:
-            self.logger.debug('Sending: %s', command)
+            self.report_debug(f"Sending: {command}")
             with self.lock:
                 self.sock.sendall(command.encode("ascii"))
         except Exception as ex:
             self.report_error(f"Failed to send message: {ex}")
-            raise IOError(f'Failed to write message: {ex}') from ex
-        self.logger.debug('Command sent')
+            raise IOError(f"Failed to write message: {ex}") from ex
+        self.report_debug("Command sent")
         return True
 
     def _read_reply(self) -> bytes:
@@ -199,7 +199,7 @@ class ONEWIRE(HardwareSensorBase):
             return b''
         try:
             retval = self.sock.recv(25000)
-            self.logger.debug('Received: %s', retval.decode("ascii"))
+            self.report_debug(f"Received: {retval.decode("ascii")}")
             return retval
         except Exception as ex:
             raise IOError(f"Failed to _read_reply message: {ex}") from ex
@@ -208,7 +208,7 @@ class ONEWIRE(HardwareSensorBase):
         """Get the atomic value from the controller."""
         allowed_items = ["temperature", "humidity", "dew_point"]
         if item not in allowed_items:
-            self.logger.error("Item not allowed: %s", item)
+            self.report_error(f"Item not allowed: {item}")
             return None
         self.get_data()
         ow_data = self.ow_data.read_sensors()
@@ -247,7 +247,7 @@ class ONEWIRE(HardwareSensorBase):
     def __http_response_handler(self, response):
         response_code = int(response.split(' ')[1])
 
-        self.logger.debug("HTTP response received: %s", response_code)
+        self.report_debug(f"HTTP response received: {response_code}")
         if response_code != 200:
             raise HttpResponseError(f"Http response error: {response_code}")
 
@@ -258,7 +258,7 @@ class ONEWIRE(HardwareSensorBase):
             tag_elements = elem.tag.split("}")
             elem.tag = tag_elements[1]
 
-        self.logger.debug("XML data received: %s", ET.tostring(root, encoding='unicode'))
+        self.report_debug(f"XML data received: {ET.tostring(root, encoding='unicode')}")
         # ET.dump(root)
         # for elem in root.iter():
         #     print(elem.tag, elem.attrib, elem.text)
