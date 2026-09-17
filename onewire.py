@@ -15,60 +15,60 @@ PARAMETER_QUERY = "GET /details.xml HTTP/1.1\r\n\r\n"
 class EDS0065DATA:
     """Class to hold data from EDS0065"""
     # pylint: disable=too-many-instance-attributes
-    rom_id: str = None
-    device_type: str = None
-    health: int = None
-    channel: int = None
-    raw_data: str = None
-    relative_humidity: float = None
-    temperature: float = None
-    humidity: float = None
-    dew_point: float = None
-    humidex: float = None
-    heat_index: float = None
-    version: float = None
+    rom_id: str | None = None
+    device_type: str | None = None
+    health: int | None = None
+    channel: int | None= None
+    raw_data: str |None = None
+    relative_humidity: float| None = None
+    temperature: float| None = None
+    humidity: float| None = None
+    dew_point: float| None = None
+    humidex: float| None = None
+    heat_index: float| None = None
+    version: float| None = None
 
 @dataclass
 class EDS0068DATA:
     """Class to hold data from EDS0068"""
     # pylint: disable=too-many-instance-attributes
-    rom_id: str = None
-    device_type: str = None
-    health: int = None
-    channel: int = None
-    raw_data: str = None
-    relative_humidity: float = None
-    temperature: float = None
-    humidity: float = None
-    dew_point: float = None
-    humidex: float = None
-    heat_index: float = None
-    pressure_mb: float = None
-    pressure_hg: float = None
-    illuminance: int = None
-    version: float = None
+    rom_id: str | None = None
+    device_type: str | None = None
+    health: int | None = None
+    channel: int | None= None
+    raw_data: str | None = None
+    relative_humidity: float| None = None
+    temperature: float| None = None
+    humidity: float| None = None
+    dew_point: float| None = None
+    humidex: float| None = None
+    heat_index: float| None = None
+    pressure_mb: float| None = None
+    pressure_hg: float| None = None
+    illuminance: int | None = None
+    version: float| None = None
 
 @dataclass
 class ONEWIREDATA:
     """Class to hold data from OneWire"""
     # pylint: disable=too-many-instance-attributes
-    poll_count: int = None
-    total_devices: int = None
-    loop_time: float = None
-    ch1_connected: int = None
-    ch2_connected: int = None
-    ch3_connected: int = None
-    ch1_error: int = None
-    ch2_error: int = None
-    ch3_error: int = None
-    ch1_voltage: float = None
-    ch2_voltage: float = None
-    ch3_voltage: float = None
-    voltage_power: float = None
-    device_name: str = None
-    hostname: str = None
-    mac_address: str = None
-    datetime: str = None
+    poll_count: int | None = None
+    total_devices: int | None = None
+    loop_time: float | None= None
+    ch1_connected: int | None = None
+    ch2_connected: int | None= None
+    ch3_connected: int | None = None
+    ch1_error: int | None = None
+    ch2_error: int | None = None
+    ch3_error: int | None = None
+    ch1_voltage: float| None = None
+    ch2_voltage: float| None = None
+    ch3_voltage: float| None = None
+    voltage_power: float| None = None
+    device_name: str | None = None
+    hostname: str | None = None
+    mac_address: str | None = None
+    datetime: str | None = None
     eds0065_data: List[EDS0065DATA] = field(default_factory=list)
     eds0068_data: List[EDS0068DATA] = field(default_factory=list)
 
@@ -192,7 +192,7 @@ class ONEWIRE(HardwareSensorBase):
         Read a response from the controller.
 
         Returns:
-            str: The received message, stripped of trailing newline.
+            bytes: The received message, stripped of trailing newline.
         """
         if not self.is_connected():
             self.report_error("Device is not connected")
