@@ -4,7 +4,6 @@ Onewire Controller Interface
 import socket
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
-import sys
 from typing import List, Union, Any
 
 from hardware_device_base import HardwareSensorBase
@@ -230,7 +229,7 @@ class ONEWIRE(HardwareSensorBase):
             self.__http_response_handler(http_response)
         except HttpResponseError as err:
             print(err)
-            sys.exit(1)
+            raise HttpResponseError(f"Http response error: {err}") from err
 
         # fresh copy to avoid continual appending
         self.ow_data = ONEWIREDATA()
